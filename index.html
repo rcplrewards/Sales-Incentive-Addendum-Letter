@@ -6,7 +6,6 @@
 <title>Sales Incentive Letter Generator — Reliance Consumer Products Ltd.</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.11.1/lib/msal-browser.min.js"></script>
 <style>
 :root{
   --pd:#3C3489;--pm:#534AB7;--pl:#EEEDFE;--pb:#AFA9EC;
@@ -423,52 +422,30 @@ function makeViewer(f, letter) {
 }
 
 
-function saveToOneDrive(f) {
-  var url = 'https://graph.microsoft.com/v1.0/users/geetanjali.phavade@ril.com/drive/root:/Total Rewards/Sales Incentive/Onboarding - Addendum Letters/Sales_Incentive_Records.xlsx:/workbook/worksheets/Sheet1/tables/Table1/rows';
-  var row = [[
-    f.candidateId||'', f.name||'', f.grade||'', f.fy||'',
-    f.amtNum||'', f.amtWords||'', f.installments||'',
-    f.offerDate||'', f.letterDate||'', f.generatedAt||''
-  ]];
-  getToken().then(function(token) {
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: row })
-    }).then(function(r) {
-      if (r.ok) { console.log('Record saved to Excel OK'); }
-      else { r.text().then(function(t) { console.warn('Save error:', t); }); }
-    }).catch(function(e) { console.warn('Fetch error:', e); });
-  }).catch(function(e) { console.warn('Token error - record not saved:', e); });
-}
 
-function getToken() {
-  return new Promise(function(resolve, reject) {
-    if (typeof msal === 'undefined') { reject('MSAL not loaded'); return; }
-    var cfg = {
-      auth: {
-        clientId: '00000003-0000-0ff1-ce00-000000000000',
-        authority: 'https://login.microsoftonline.com/common'
-      },
-      cache: { cacheLocation: 'sessionStorage' }
-    };
-    var app = new msal.PublicClientApplication(cfg);
-    var req = { scopes: ['https://graph.microsoft.com/Files.ReadWrite'] };
-    var accounts = app.getAllAccounts();
-    if (accounts.length > 0) {
-      app.acquireTokenSilent(Object.assign({}, req, { account: accounts[0] }))
-        .then(function(r) { resolve(r.accessToken); })
-        .catch(function() {
-          app.acquireTokenPopup(req)
-            .then(function(r) { resolve(r.accessToken); })
-            .catch(reject);
-        });
-    } else {
-      app.acquireTokenPopup(req)
-        .then(function(r) { resolve(r.accessToken); })
-        .catch(reject);
-    }
-  });
+var WEBHOOK_URL = 'https://defaultfe1d95a94ce141a58eab6dd43aa26d.9f.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6d0b59375b9f4e43b09f708123f1b68f/triggers/manual/paths/invoke?api-version=1';
+
+function saveToOneDrive(f) {
+  if (!WEBHOOK_URL) { console.log('No webhook configured'); return; }
+  fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      candidateId: f.candidateId || '',
+      name: f.name || '',
+      grade: f.grade || '',
+      fy: f.fy || '',
+      amtNum: f.amtNum || '',
+      amtWords: f.amtWords || '',
+      installments: f.installments || '',
+      offerDate: f.offerDate || '',
+      letterDate: f.letterDate || '',
+      generatedAt: f.generatedAt || ''
+    })
+  }).then(function(r) {
+    if (r.ok) { console.log('Record saved to Excel via Power Automate'); }
+    else { console.warn('Webhook error:', r.status); }
+  }).catch(function(e) { console.warn('Webhook failed:', e); });
 }
 </script>
 </body>
